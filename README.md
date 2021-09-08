@@ -1,6 +1,9 @@
 # KillSounds
 A plugin for CS:GO that plays custom kill sounds to the attacker.
 
+# Info
+For more info or sound packs, please visit the alliedmodders post -> https://forums.alliedmods.net/showthread.php?p=2757283#post2757283
+
 # Configure
 Just set your playable files in 'cfg/SpirT/kill.sounds.cfg' and do NOT place sound/ in the file path.
 
