@@ -1,6 +1,7 @@
 #include <sourcemod>
 #include <sdktools>
 #include <sdkhooks>
+#include <clientprefs>
 
 #pragma semicolon 1
 #pragma newdecls required
@@ -8,12 +9,15 @@
 ConVar g_kill1, g_kill2, g_kill3, g_kill4, g_ace;
 char kill1[PLATFORM_MAX_PATH], kill2[PLATFORM_MAX_PATH], kill3[PLATFORM_MAX_PATH], kill4[PLATFORM_MAX_PATH], ace[PLATFORM_MAX_PATH];
 
-#define PLUGIN_VERSION "1.0"
+#define PLUGIN_VERSION "1.1"
 
 Handle killTimer[MAXPLAYERS + 1];
-char lastKillSound[MAXPLAYERS + 1];
+char lastKillSound[MAXPLAYERS + 1][PLATFORM_MAX_PATH];
 int kills[MAXPLAYERS + 1];
 bool isPlayingSound[MAXPLAYERS + 1];
+bool hasSoundsEnabled[MAXPLAYERS + 1];
+
+Handle soundsCookie = INVALID_HANDLE;
 
 public Plugin myinfo = 
 {
@@ -34,6 +38,44 @@ public void OnPluginStart()
 	HookEvent("round_start", OnRoundStart);
 	HookEvent("player_death", OnPlayerDeath);
 	AutoExecConfig(true, "kill.sounds", "SpirT");
+	
+	RegConsoleCmd("sm_killsounds", Command_KillSounds, "Enables/Disables kill sounds");
+	
+	soundsCookie = RegClientCookie("spirt_kill_sounds_enabled", "Enables/Disables sounds for clients", CookieAccess_Private);
+	
+	for (int i = MaxClients; i > 0; --i)
+    {
+        if (!AreClientCookiesCached(i))
+        {
+            continue;
+        }
+        
+        OnClientCookiesCached(i);
+    }
+}
+
+public void OnClientCookiesCached(int client) {
+	char sValue[8];
+	GetClientCookie(client, soundsCookie, sValue, sizeof(sValue));
+	
+	if(sValue[0] == '\0') {
+		hasSoundsEnabled[client] = true;
+		SetClientCookie(client, soundsCookie, "1");
+		return;
+	}
+	
+	hasSoundsEnabled[client] = StringToInt(sValue) == 1;
+}
+
+public Action Command_KillSounds(int client, int args) {
+	if(!client || IsFakeClient(client)) {
+		return Plugin_Handled;
+	}
+	
+	hasSoundsEnabled[client] = !hasSoundsEnabled[client];
+	
+	PrintToChat(client, "[KILL SOUNDS] Kill Sounds have been %s", hasSoundsEnabled[client] ? "enabled" : "disabled");
+	return Plugin_Handled;
 }
 
 public void OnConfigsExecuted() {
@@ -60,6 +102,12 @@ public void OnClientPostAdminCheck(int client) {
 	killTimer[client] = INVALID_HANDLE;
 	kills[client] = 0;
 	isPlayingSound[client] = false;
+	
+	if(!AreClientCookiesCached(client)) {
+		return;
+	}
+	
+	OnClientCookiesCached(client);
 }
 
 public Action OnRoundStart(Event event, const char[] name, bool dontBroadCast) {
@@ -71,13 +119,15 @@ public Action OnRoundStart(Event event, const char[] name, bool dontBroadCast) {
 			isPlayingSound[client] = false;
 		}
 	}
+	
+	return Plugin_Continue;
 } 
 
 public Action OnPlayerDeath(Event event, const char[] name, bool dontBroadCast) {
 	int client = GetClientOfUserId(GetEventInt(event, "attacker"));
-	if(!IsFakeClient(client)) {
+	if(!IsFakeClient(client) && hasSoundsEnabled[client]) {
 		if(isPlayingSound[client]) {
-			StopSound(client, SNDCHAN_AUTO, lastKillSound);
+			StopSound(client, SNDCHAN_AUTO, lastKillSound[client]);
 			isPlayingSound[client] = false;
 		}
 		
@@ -109,8 +159,11 @@ public Action OnPlayerDeath(Event event, const char[] name, bool dontBroadCast) 
 			killTimer[client] = CreateTimer(4.0, AllowNextSound, client);
 		}
 	}
+	
+	return Plugin_Continue;
 }
 
 Action AllowNextSound(Handle timer, int client) {
 	isPlayingSound[client] = false;
+	return Plugin_Continue;
 }
