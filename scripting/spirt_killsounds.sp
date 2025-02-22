@@ -9,7 +9,7 @@
 ConVar g_kill1, g_kill2, g_kill3, g_kill4, g_ace;
 char kill1[PLATFORM_MAX_PATH], kill2[PLATFORM_MAX_PATH], kill3[PLATFORM_MAX_PATH], kill4[PLATFORM_MAX_PATH], ace[PLATFORM_MAX_PATH];
 
-#define PLUGIN_VERSION "1.1"
+#define PLUGIN_VERSION "1.1.1"
 
 Handle killTimer[MAXPLAYERS + 1];
 char lastKillSound[MAXPLAYERS + 1][PLATFORM_MAX_PATH];
@@ -59,8 +59,8 @@ public void OnClientCookiesCached(int client) {
 	GetClientCookie(client, soundsCookie, sValue, sizeof(sValue));
 	
 	if(sValue[0] == '\0') {
-		hasSoundsEnabled[client] = true;
-		SetClientCookie(client, soundsCookie, "1");
+		hasSoundsEnabled[client] = false;
+		SetClientCookie(client, soundsCookie, "0");
 		return;
 	}
 	
@@ -73,7 +73,7 @@ public Action Command_KillSounds(int client, int args) {
 	}
 	
 	hasSoundsEnabled[client] = !hasSoundsEnabled[client];
-	
+	SetClientCookie(client, soundsCookie, hasSoundsEnabled[client] ? "1" : "0");
 	PrintToChat(client, "[KILL SOUNDS] Kill Sounds have been %s", hasSoundsEnabled[client] ? "enabled" : "disabled");
 	return Plugin_Handled;
 }
